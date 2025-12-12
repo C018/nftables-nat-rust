@@ -1,5 +1,3 @@
------------------------------------------------------------------
-
 ## 基于nftables的端口转发管理工具
 
 用途：便捷地设置nat流量转发
@@ -17,7 +15,8 @@
 7. 支持自定义本机ip【2023.1.17更新】
 8. 开机自启动
 9. 支持端口段
-10. 轻量，只依赖rust标准库
+10. 兼容Docker
+11. 轻量，只依赖rust标准库和日志库
 
 ## 准备工作
 
@@ -26,77 +25,31 @@
 3. 开启内核端口转发
 4. 安装nftables（一般情况下，centos8默认包含nftables）
 
-以下一键完成：
+以下是**Centos8/9**上一键完成的脚本：
 
 ```shell
 # 关闭firewalld
-service firewalld stop
-systemctl disable firewalld
+systemctl disable --now firewalld
 # 关闭selinux
 setenforce 0
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config  
-# 修改内存参数，开启端口转发
-echo 1 > /proc/sys/net/ipv4/ip_forward
-sed -i '/^net.ipv4.ip_forward=0/'d /etc/sysctl.conf
-sed -n '/^net.ipv4.ip_forward=1/'p /etc/sysctl.conf | grep -q "net.ipv4.ip_forward=1"
-if [ $? -ne 0 ]; then
-    echo -e "net.ipv4.ip_forward=1" >> /etc/sysctl.conf && sysctl -p
-fi
 # 确保nftables已安装
 yum install -y  nftables
 ```
 
-**debian系说明** 请自行使用apt安装nftables，并禁用iptables
+**Debian系**请自行使用apt安装nftables，并禁用iptables
 
-## 使用说明
+## 安装说明
+
+### 传统配置文件版本
 
 ```shell
-# 必须是root用户
-# sudo su
-# 下载可执行文件
-#curl -sSLf http://cdn.arloor.com/tool/dnat -o /tmp/nat
-curl -sSLf https://us.arloor.dev/https://github.com/arloor/nftables-nat-rust/releases/download/v1.0.0/dnat -o /tmp/nat
-install /tmp/nat /usr/local/bin/nat
-
-# 创建systemd服务
-cat > /lib/systemd/system/nat.service <<EOF
-[Unit]
-Description=dnat-service
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-WorkingDirectory=/opt/nat
-EnvironmentFile=/opt/nat/env
-ExecStart=/usr/local/bin/nat /etc/nat.conf
-LimitNOFILE=100000
-Restart=always
-RestartSec=60
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 设置开机启动，并启动该服务
-systemctl daemon-reload
-systemctl enable nat
-
-mkdir /opt/nat
-touch /opt/nat/env
-# echo "nat_local_ip=10.10.10.10" > /opt/nat/env #自定义本机ip，用于多网卡的机器
-
-# 生成配置文件，配置文件可按需求修改（请看下文）
-cat > /etc/nat.conf <<EOF
-SINGLE,49999,59999,baidu.com
-RANGE,50000,50010,baidu.com
-EOF
-
-systemctl restart nat
+bash <( curl -sSLf https://us.arloor.dev/https://github.com/arloor/nftables-nat-rust/releases/download/v1.0.0/setup_legacy_version.sh)
 ```
 
 **配置文件说明**
 
-`/etc/nat.conf`如下：
+`/etc/nat.conf` 如下：
 
 ```$xslt
 SINGLE,49999,59999,baidu.com
@@ -116,7 +69,23 @@ RANGE,50000,50010,baidu.com
 
 如需修改转发规则，请`vim /etc/nat.conf`以设定你想要的转发规则。修改完毕后，无需重新启动vps或服务，程序将会自动在最多一分钟内更新nat转发规则（PS：受dns缓存影响，可能会超过一分钟）
 
-## 一些需要注意的东西
+### toml配置文件版本
+
+```shell
+bash <( curl -sSLf https://us.arloor.dev/https://github.com/arloor/nftables-nat-rust/releases/download/v1.0.0/setup_toml_version.sh)
+```
+
+## 更新新版
+
+本程序由github actions自动发布新v1.0.0版本，可以通过下面的命令更新：
+
+```bash
+curl -sSLf https://us.arloor.dev/https://github.com/arloor/nftables-nat-rust/releases/download/v1.0.0/nat -o /tmp/nat
+install /tmp/nat /usr/local/bin/nat
+systemctl restart nat
+```
+
+## 其他
 
 1. 本工具在centos8、redhat8、fedora31上有效，其他发行版未作测试
 2. 与前作[arloor/iptablesUtils](https://github.com/arloor/iptablesUtils)不兼容，在两个工具之间切换时，请先卸载原来的工具或重装系统
@@ -125,34 +94,47 @@ RANGE,50000,50010,baidu.com
 
 ```shell
 ## 停止定时监听域名解析地任务
-service nat stop
-## 清空nat规则
-nft add table ip nat
-nft delete table ip nat
-## 禁止开机启动
-systemctl disable nat
+systemctl disable --now nat
 ```
+
+## webui
+
+感谢 @C018 贡献的[webui](webui/README.md)
 
 ## 致谢
 
-1. [解决会清空防火墙的问题](https://github.com/arloor/nftables-nat-rust/pull/6)
-2. [ubuntu18.04适配](https://github.com/arloor/nftables-nat-rust/issues/1)
+1. [通过自定义nftables表名来避免与docker等服务冲突](https://github.com/arloor/nftables-nat-rust/pull/34)
+2. [解决会清空防火墙的问题](https://github.com/arloor/nftables-nat-rust/pull/6)
+3. [ubuntu18.04适配](https://github.com/arloor/nftables-nat-rust/issues/1)
 
-## 常问问题
+## 常见问题
+
+### docker兼容性
+
+最新版本已经与docker兼容，欢迎试用和反馈。
+
+> 更多说明：Docker v28 将filter表forward链的默认策略设置为了drop（参见[Docker Engine v28: Hardening Container Networking by Default](https://www.docker.com/blog/docker-engine-28-hardening-container-networking-by-default/)），这会导致我们的自定义nat规则无法通过forward链。为了解决此问题，此程序会自动将filter表forward链的默认策略重置为accept。
+
+### 指定 src ip
+
+当前版本使用 masquerade 来处理多网卡的SNAT，可以自动处理多网卡路由不同的问题。如果仍然需要自定义src ip，则可以执行以下脚本来自定义本机ip，该示例是将本机ip定义为`10.10.10.10`
+
+```bash
+echo "nat_local_ip=10.10.10.10" > /opt/nat/env #自定义本机ip，用于多网卡的机器
+systemctl restart nat
+```
+
+### IPv6支持
+
+本软件已经支持ipv6转发，详见：
+
+[IPv6_SUPPORT.md](IPv6_SUPPORT.md)
 
 ### 关于trojan转发
 
 总是有人说，不能转发trojan，这么说的人大部分是证书配置不对。最简单的解决方案是：客户端选择不验证证书。复杂一点是自己把证书和中转机的域名搭配好。
 
 小白记住一句话就好：客户端不验证证书。
-
-### 用于多网卡的机器时，如何指定用于转发的本机ip
-
-可以执行以下脚本来自定义本机ip，该示例是将本机ip定义为`10.10.10.10`
-
-```shell
-echo "nat_local_ip=10.10.10.10" > /opt/nat/env
-```
 
 ### 如何查看最终的nftables规则
 
@@ -165,19 +147,6 @@ nft list ruleset
 执行
 
 ```shell
-cat /opt/nat/nat.log
-```
-
-或执行
-
-```shell
 journalctl -exfu nat
 ```
 
-## 联系
-
-[Telegram](https://t.me/popstary)
-
-## 赏个鸡腿吧
-
-<img src="/wechat_shoukuan.jpg" alt="" width="400px" style="max-width: 100%;">

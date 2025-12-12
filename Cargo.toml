@@ -1,5 +1,5 @@
 [package]
-name = "dnat"
+name = "nat"
 version = "0.2.0"
 authors = ["arloor <admin@arloor.com>"]
 edition = "2018"
@@ -7,5 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log_x = { git = "https://github.com/arloor/rust_http_proxy.git" }
+env_logger = "0.11"
 log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+clap = { version = "4.4", features = ["derive"] }
+toml = "0.8"
