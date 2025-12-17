@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const app = express();
 const PORT = 3000;
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex');
+const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex'); // 未设置环境变量时重启会使现有会话失效
 const activeSessions = new Map();
 
 // HTTPS 设置 (请提供有效的证书和私钥)
@@ -52,8 +52,7 @@ const isValidPort = (value) => /^\d{1,5}$/.test(value) && Number(value) >= 0 && 
 const isValidProtocol = (value) => value === '' || value === 'tcp' || value === 'udp';
 const isValidDestination = (value) => !!value && !/[\s#]/.test(value) && !value.includes(',');
 
-const validateRule = (rule) => {
-    const normalized = normalizeRule(rule);
+const validateNormalizedRule = (normalized) => {
     if (!['SINGLE', 'RANGE'].includes(normalized.type)) return false;
     if (!isValidPort(normalized.startPort) || !isValidPort(normalized.endPort || normalized.startPort)) return false;
     if (!isValidDestination(normalized.destination)) return false;
@@ -61,6 +60,8 @@ const validateRule = (rule) => {
     if (normalized.type === 'RANGE' && Number(normalized.startPort) > Number(normalized.endPort || normalized.startPort)) return false;
     return true;
 };
+
+const validateRule = (rule) => validateNormalizedRule(normalizeRule(rule));
 
 // 从 /etc/nat.conf 读取规则
 let rules = [];
@@ -74,14 +75,15 @@ const readRulesFile = () => {
             line = line.split('#')[0].trim(); // 移除注释
             return line ? line.split(',') : null;
         }).filter(Boolean).map(parts => {
-            return normalizeRule({
+            const normalized = normalizeRule({
                 type: parts[0],
                 startPort: parts[1],
                 endPort: parts[2] || null,
                 destination: parts[3],
                 protocol: parts[4] || null // 新增协议字段
             });
-        }).filter(validateRule);
+            return validateNormalizedRule(normalized) ? normalized : null;
+        }).filter(Boolean);
     });
 };
 readRulesFile();
@@ -156,11 +158,10 @@ app.post('/edit-rule', isAuthenticated, (req, res) => {
         protocol // 更新协议
     };
 
-    if (!validateRule(candidate)) {
+    const normalized = normalizeRule(candidate);
+    if (!validateNormalizedRule(normalized)) {
         return res.status(400).json({ message: '规则验证失败，请检查输入' });
     }
-
-    const normalized = normalizeRule(candidate);
     normalized.endPort = normalized.endPort || normalized.startPort;
     normalized.protocol = normalized.protocol.toLowerCase();
 
@@ -176,20 +177,17 @@ app.post('/save-rules', isAuthenticated, (req, res) => {
 
     const normalizedRules = [];
     for (const rule of req.body.rules) {
-        if (!validateRule(rule)) {
+        const normalized = normalizeRule(rule);
+        if (!validateNormalizedRule(normalized)) {
             return res.status(400).json({ message: '规则验证失败，请检查输入' });
         }
-        const normalized = normalizeRule(rule);
         const endPort = normalized.endPort || normalized.startPort;
         const protocol = normalized.protocol.toLowerCase();
         normalizedRules.push({ ...normalized, endPort, protocol });
     }
 
     const rulesData = normalizedRules.map(rule => {
-        const endPort = rule.endPort || rule.startPort; // 处理空值
-        const protocol = rule.protocol || ''; // 获取协议
-
-        return `${rule.type},${rule.startPort},${endPort},${rule.destination}${protocol ? ',' + protocol : ''}`;
+        return `${rule.type},${rule.startPort},${rule.endPort},${rule.destination}${rule.protocol ? ',' + rule.protocol : ''}`;
     }).join('\n');
 
     fs.writeFile('/etc/nat.conf', rulesData, (err) => {
