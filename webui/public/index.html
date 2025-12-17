@@ -5,28 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录</title>
     <style>
-        * {
-            box-sizing: border-box;
+        * { box-sizing: border-box; }
+        :root {
+            --ios-primary: #0a84ff;
+            --ios-surface: rgba(255, 255, 255, 0.85);
+            --ios-shadow: 0 20px 40px rgba(10, 132, 255, 0.12);
         }
         body {
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+            font-family: "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+            background: radial-gradient(circle at 20% 20%, #e8f1ff, #f7faff 40%, #eef5ff 80%);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             padding: 0 20px;
         }
         .login-container {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            background: var(--ios-surface);
+            backdrop-filter: blur(16px);
+            border-radius: 22px;
+            padding: 36px;
+            box-shadow: var(--ios-shadow);
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             text-align: center;
-            animation: fadeIn 0.5s ease-in-out;
+            animation: fadeIn 0.45s ease;
+            border: 1px solid rgba(10, 132, 255, 0.08);
         }
         @keyframes fadeIn {
             from {
@@ -36,42 +41,41 @@
                 opacity: 1;
             }
         }
-        h2 {
-            margin-bottom: 30px;
-            color: #007aff;
-            font-size: 28px;
-        }
+        h2 { margin-bottom: 26px; color: #0a84ff; font-size: 28px; letter-spacing: 0.2px; }
         input {
             width: 100%;
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 1px solid #007aff;
-            border-radius: 5px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            border: 1px solid rgba(10, 132, 255, 0.15);
+            border-radius: 14px;
             font-size: 16px;
-            transition: border 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            transition: border 0.25s ease, box-shadow 0.25s ease;
         }
         input:focus {
-            border-color: #0051a8;
+            border-color: var(--ios-primary);
             outline: none;
+            box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.12);
         }
         button {
             width: 100%;
-            padding: 15px;
-            background-color: #007aff;
+            padding: 14px;
+            background: linear-gradient(120deg, #0a84ff, #4ea6ff);
             color: #ffffff;
             border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 16px;
+            font-size: 17px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 10px 20px rgba(10, 132, 255, 0.24);
         }
-        button:hover {
-            background-color: #0051a8;
-        }
+        button:hover { transform: translateY(-1px); box-shadow: 0 14px 26px rgba(10, 132, 255, 0.28); }
+        button:active { transform: translateY(0); box-shadow: 0 10px 20px rgba(10, 132, 255, 0.22); }
         .message {
-            margin-top: 15px;
-            color: #d9534f; /* 红色错误信息 */
-            display: none; /* 默认隐藏 */
+            margin-top: 14px;
+            color: #d9534f;
+            display: none;
         }
         footer {
             margin-top: 20px;
@@ -98,7 +102,7 @@
         <form id="loginForm" onsubmit="return login(event)">
             <input type="text" id="username" placeholder="用户名" required>
             <input type="password" id="password" placeholder="密码" required>
-            <button type="submit">登录</button>
+            <button type="submit" id="loginButton">登录</button>
         </form>
         <div class="message" id="message"></div>
         <footer>
@@ -109,23 +113,39 @@
     <script>
         async function login(event) {
             event.preventDefault();
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const messageDiv = document.getElementById('message');
+            const button = document.getElementById('loginButton');
+            messageDiv.style.display = 'none';
 
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password }),
-            });
+            if (!username || !password) {
+                messageDiv.innerHTML = '请输入完整的用户名和密码';
+                messageDiv.style.display = 'block';
+                return;
+            }
 
-            if (response.ok) {
-                window.location.href = '/admin'; // 成功登录后重定向到后台管理
-            } else {
-                messageDiv.innerHTML = '用户名或密码错误！';
-                messageDiv.style.display = 'block'; // 显示错误信息
+            button.disabled = true;
+            button.innerText = '登录中...';
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                if (response.ok) {
+                    window.location.href = '/admin';
+                } else {
+                    messageDiv.innerHTML = '用户名或密码错误！';
+                    messageDiv.style.display = 'block';
+                }
+            } catch (err) {
+                messageDiv.innerHTML = '无法连接服务器，请稍后再试';
+                messageDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.innerText = '登录';
             }
         }
     </script>
