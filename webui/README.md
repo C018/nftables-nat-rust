@@ -767,6 +767,7 @@ https.createServer(options, app).listen(PORT, () => {
     ```bash
     node server.js
     ```
+6. **COOKIE_SECRET**：为增强登录安全性，请在启动前设置随机的 `COOKIE_SECRET` 环境变量用于签名会话 Cookie（未设置将拒绝启动）；如需在非 https 环境调试，可将 `COOKIE_SECURE=false`。
 
 ### 要设置 Node.js 应用在开机时自动启动，您可以使用 `systemd` 来创建一个服务。下面是如何在 Linux 系统（如 Ubuntu）中进行设置的步骤。
 
