@@ -13,6 +13,9 @@ const PORT = 3000;
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex'); // 未设置环境变量时重启会使现有会话失效
 const activeSessions = new Map();
+if (!process.env.COOKIE_SECRET) {
+    console.warn('COOKIE_SECRET 未设置，重启后会清除当前登录会话');
+}
 
 // HTTPS 设置 (请提供有效的证书和私钥)
 const options = {
@@ -45,10 +48,10 @@ const normalizeRule = (rule) => ({
     startPort: String(rule.startPort || '').trim(),
     endPort: String(rule.endPort || '').trim(),
     destination: String(rule.destination || '').trim(),
-    protocol: rule.protocol ? String(rule.protocol).trim() : ''
+    protocol: rule.protocol === undefined || rule.protocol === null ? '' : String(rule.protocol).trim().toLowerCase()
 });
 
-const isValidPort = (value) => /^\d{1,5}$/.test(value) && Number(value) >= 0 && Number(value) <= 65535;
+const isValidPort = (value) => /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= 65535;
 const isValidProtocol = (value) => value === '' || value === 'tcp' || value === 'udp';
 const isValidDestination = (value) => !!value && !/[\s#]/.test(value) && !value.includes(',');
 
@@ -56,7 +59,7 @@ const validateNormalizedRule = (normalized) => {
     if (!['SINGLE', 'RANGE'].includes(normalized.type)) return false;
     if (!isValidPort(normalized.startPort) || !isValidPort(normalized.endPort || normalized.startPort)) return false;
     if (!isValidDestination(normalized.destination)) return false;
-    if (!isValidProtocol(normalized.protocol.toLowerCase())) return false;
+    if (!isValidProtocol(normalized.protocol)) return false;
     if (normalized.type === 'RANGE' && Number(normalized.startPort) > Number(normalized.endPort || normalized.startPort)) return false;
     return true;
 };
@@ -104,6 +107,15 @@ function isAuthenticated(req, res, next) {
     }
     return next();
 }
+const cleanExpiredSessions = () => {
+    const now = Date.now();
+    for (const [id, session] of activeSessions.entries()) {
+        if (now - session.created > SESSION_TTL_MS) {
+            activeSessions.delete(id);
+        }
+    }
+};
+setInterval(cleanExpiredSessions, SESSION_TTL_MS).unref();
 
 // 路由: 登录页面
 app.get('/index', (req, res) => {
@@ -163,7 +175,6 @@ app.post('/edit-rule', isAuthenticated, (req, res) => {
         return res.status(400).json({ message: '规则验证失败，请检查输入' });
     }
     normalized.endPort = normalized.endPort || normalized.startPort;
-    normalized.protocol = normalized.protocol.toLowerCase();
 
     rules[index] = normalized;
     res.json({ message: '规则编辑成功' });
@@ -182,8 +193,7 @@ app.post('/save-rules', isAuthenticated, (req, res) => {
             return res.status(400).json({ message: '规则验证失败，请检查输入' });
         }
         const endPort = normalized.endPort || normalized.startPort;
-        const protocol = normalized.protocol.toLowerCase();
-        normalizedRules.push({ ...normalized, endPort, protocol });
+        normalizedRules.push({ ...normalized, endPort });
     }
 
     const rulesData = normalizedRules.map(rule => {
