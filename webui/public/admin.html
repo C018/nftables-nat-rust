@@ -6,129 +6,153 @@
     <title>端口转发控制台</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
-        * {
-            box-sizing: border-box;
+        * { box-sizing: border-box; }
+        :root {
+            --ios-primary: #0a84ff;
+            --ios-bg: radial-gradient(circle at 20% 20%, #e9f2ff, #f8fbff 50%, #e8f0ff 90%);
+            --ios-surface: rgba(255, 255, 255, 0.88);
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Arial', sans-serif;
-            background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
-            color: #333;
+            background: var(--ios-bg);
+            color: #1b1b1b;
             margin: 0;
-            padding: 20px;
+            padding: 24px 16px 32px;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 760px;
             margin: auto;
-            padding: 30px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            padding: 28px;
+            background: var(--ios-surface);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            box-shadow: 0 18px 50px rgba(10, 132, 255, 0.12);
+            border: 1px solid rgba(10, 132, 255, 0.08);
         }
 
         h1, h2 {
             text-align: center;
-            color: #007aff;
+            color: #0a84ff;
+            margin: 0 0 18px;
+            letter-spacing: 0.2px;
         }
 
         label {
             display: block;
-            margin-top: 20px;
-            font-weight: bold;
+            margin-top: 18px;
+            font-weight: 600;
+            color: #3a3a3c;
+        }
+
+        .note {
+            font-size: 12px;
+            color: #6c6c70;
+            margin: -4px 0 10px;
         }
 
         input[type="text"],
         select {
-            width: calc(100% - 22px);
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid #bbb;
-            border-radius: 6px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+            width: 100%;
+            padding: 12px 14px;
+            margin: 8px 0 14px;
+            border: 1px solid rgba(10, 132, 255, 0.2);
+            border-radius: 14px;
+            font-size: 15px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+            background: rgba(255, 255, 255, 0.95);
         }
 
         input[type="text"]:focus,
         select:focus {
-            border-color: #007aff;
+            border-color: var(--ios-primary);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.12);
         }
 
-        input[type="button"] {
+        .button {
             width: 100%;
             padding: 14px;
-            background-color: #007aff;
+            background: linear-gradient(120deg, #0a84ff, #4ea6ff);
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 16px;
             cursor: pointer;
             font-size: 16px;
-            transition: background-color 0.3s, transform 0.2s;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 12px 22px rgba(10, 132, 255, 0.18);
+            margin-top: 6px;
         }
 
-        input[type="button"]:hover {
-            background-color: #0051a8;
-            transform: translateY(-2px);
-        }
+        .button:hover { transform: translateY(-1px); box-shadow: 0 16px 30px rgba(10, 132, 255, 0.24); }
+        .button:active { transform: translateY(0); box-shadow: 0 10px 20px rgba(10, 132, 255, 0.16); }
 
         .message {
             display: none;
-            padding: 10px;
-            margin-top: 15px;
-            border-radius: 5px;
+            padding: 12px 14px;
+            margin-top: 12px;
+            border-radius: 12px;
             color: #fff;
+            font-weight: 600;
         }
 
-        .success {
-            background-color: #5cb85c;
-        }
-
-        .error {
-            background-color: #d9534f;
-        }
+        .success { background: linear-gradient(120deg, #34c759, #6ddc7f); }
+        .error { background: linear-gradient(120deg, #ff453a, #ff6b6b); }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            border-radius: 10px;
+            margin-top: 18px;
+            border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 26px rgba(10, 132, 255, 0.08);
+            background: rgba(255, 255, 255, 0.95);
         }
 
         th,
         td {
             padding: 12px;
-            border: 1px solid #ccc;
+            border: 1px solid rgba(0, 0, 0, 0.05);
             text-align: center;
         }
 
         th {
-            background-color: #f1f1f1;
-            font-weight: bold;
+            background-color: #f3f6fb;
+            font-weight: 700;
+            color: #0a84ff;
         }
 
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
+        tr:nth-child(even) { background-color: #f8fbff; }
+        tr:hover { background-color: #eef5ff; }
 
-        tr:hover {
-            background-color: #f0f0f0;
+        .table-button {
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(10, 132, 255, 0.35);
+            color: #0a84ff;
+            background: #fff;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
         }
+        .table-button:hover { background: #e8f2ff; transform: translateY(-1px); }
 
         pre {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 6px;
+            background-color: #0a0a0c;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 12px;
             overflow-x: auto;
-            font-family: monospace;
+            font-family: SFMono-Regular, Consolas, monospace;
             white-space: pre-wrap;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
 
         footer {
             text-align: center;
             margin-top: 20px;
             font-size: 0.8em;
-            color: #777;
+            color: #6c6c70;
         }
     </style>
 </head>
@@ -158,7 +182,7 @@
         <input type="text" id="protocol" placeholder="tcp/udp（可选）">
         <div class="note">留空默认为全部转发，仅需tcp则填写tcp</div>
 
-        <input type="button" value="添加规则" onclick="addRule()">
+        <button class="button" type="button" onclick="addRule()">添加规则</button>
         <div class="message" id="message"></div>
         
         <h2>当前规则</h2>
@@ -177,11 +201,11 @@
                 <!-- 规则将被动态插入这里 -->
             </tbody>
         </table>
-        <input type="button" value="保存规则" onclick="saveRules()">
+        <button class="button" type="button" onclick="saveRules()">保存规则</button>
 
         <h2>配置预览（/etc/nat.conf）</h2>
         <pre id="rulesPreview"></pre>
-        <input type="button" value="登出" onclick="logout()">
+        <button class="button" type="button" onclick="logout()">登出</button>
     </div>
 
     <footer>
@@ -196,19 +220,33 @@
         };
 
         async function fetchAndRenderRules() {
-            const response = await fetch('/api/rules');
-            const fetchedRules = await response.json();
-            rules = fetchedRules; // 注意这里直接赋值
+            try {
+                const response = await fetch('/api/rules');
+                if (!response.ok) throw new Error('加载规则失败');
+                const fetchedRules = await response.json();
+                rules = Array.isArray(fetchedRules) ? fetchedRules : [];
+            } catch (err) {
+                rules = [];
+                showMessage('无法加载规则，请稍后重试', 'error');
+            }
             renderRules();
             updatePreview();
         }
 
+        const getValue = (id) => document.getElementById(id).value.trim();
+
         function addRule() {
-            const startPort = document.getElementById('startPort').value;
-            const endPort = document.getElementById('endPort').value || startPort;
-            const destination = document.getElementById('destination').value;
-            const ruleType = document.getElementById('ruleType').value;
-            const protocol = document.getElementById('protocol').value;
+            const startPort = getValue('startPort');
+            const endPort = getValue('endPort') || startPort;
+            const destination = getValue('destination');
+            const ruleType = getValue('ruleType');
+            const protocol = getValue('protocol');
+            const portNumber = (v) => /^\d{1,5}$/.test(v) && Number(v) <= 65535;
+
+            if (!portNumber(startPort) || !portNumber(endPort)) {
+                showMessage('端口格式错误，请输入0-65535的数字', 'error');
+                return;
+            }
 
             if (startPort && destination) {
                 rules.push({ type: ruleType, startPort, endPort, destination, protocol });
@@ -233,7 +271,7 @@
                 newRow.insertCell(4).innerText = rule.protocol || '未指定';
 
                 const editCell = newRow.insertCell(5);
-                editCell.innerHTML = `<button onclick="editRule(${index})">编辑</button> <button onclick="deleteRule(${index})">删除</button>`;
+                editCell.innerHTML = `<button class="table-button" onclick="editRule(${index})">编辑</button> <button class="table-button" onclick="deleteRule(${index})">删除</button>`;
             });
         }
 
@@ -263,21 +301,29 @@
 
         function updatePreview() {
             const preview = document.getElementById('rulesPreview');
+            if (!rules.length) {
+                preview.innerText = '暂无规则';
+                return;
+            }
             const previewText = rules.map(rule => `${rule.type},${rule.startPort},${rule.endPort || rule.startPort},${rule.destination}${rule.protocol ? ',' + rule.protocol : ''}`).join('\n');
             preview.innerText = previewText;
         }
 
         async function saveRules() {
-            const response = await fetch('/save-rules', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rules })
-            });
+            try {
+                const response = await fetch('/save-rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rules })
+                });
 
-            if (response.ok) {
-                showMessage('规则保存成功！', 'success');
-            } else {
-                showMessage('规则保存失败，请重试。', 'error');
+                if (response.ok) {
+                    showMessage('规则保存成功！', 'success');
+                } else {
+                    showMessage('规则保存失败，请重试。', 'error');
+                }
+            } catch (err) {
+                showMessage('网络异常，稍后再试', 'error');
             }
         }
 
