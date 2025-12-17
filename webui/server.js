@@ -11,11 +11,14 @@ const crypto = require('crypto');
 const app = express();
 const PORT = 3000;
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex'); // 未设置环境变量时重启会使现有会话失效
-const activeSessions = new Map();
+const SESSION_CLEANUP_MS = 15 * 60 * 1000;
 if (!process.env.COOKIE_SECRET) {
-    console.warn('COOKIE_SECRET 未设置，重启后会清除当前登录会话');
+    console.error('COOKIE_SECRET 未设置，出于安全原因无法启动');
+    process.exit(1);
 }
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
+const COOKIE_SECURE = process.env.COOKIE_SECURE !== 'false';
+const activeSessions = new Map();
 
 // HTTPS 设置 (请提供有效的证书和私钥)
 const options = {
@@ -54,13 +57,15 @@ const normalizeRule = (rule) => ({
 const isValidPort = (value) => /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= 65535;
 const isValidProtocol = (value) => value === '' || value === 'tcp' || value === 'udp';
 const isValidDestination = (value) => !!value && !/[\s#]/.test(value) && !value.includes(',');
+const resolveEndPort = (rule) => rule.endPort || rule.startPort;
 
 const validateNormalizedRule = (normalized) => {
     if (!['SINGLE', 'RANGE'].includes(normalized.type)) return false;
-    if (!isValidPort(normalized.startPort) || !isValidPort(normalized.endPort || normalized.startPort)) return false;
+    const endPort = resolveEndPort(normalized);
+    if (!isValidPort(normalized.startPort) || !isValidPort(endPort)) return false;
     if (!isValidDestination(normalized.destination)) return false;
     if (!isValidProtocol(normalized.protocol)) return false;
-    if (normalized.type === 'RANGE' && Number(normalized.startPort) > Number(normalized.endPort || normalized.startPort)) return false;
+    if (normalized.type === 'RANGE' && Number(normalized.startPort) > Number(endPort)) return false;
     return true;
 };
 
@@ -115,7 +120,7 @@ const cleanExpiredSessions = () => {
         }
     }
 };
-setInterval(cleanExpiredSessions, SESSION_TTL_MS).unref();
+setInterval(cleanExpiredSessions, SESSION_CLEANUP_MS).unref();
 
 // 路由: 登录页面
 app.get('/index', (req, res) => {
@@ -140,7 +145,7 @@ app.post('/login', async (req, res) => {
         activeSessions.set(sessionId, { user: username, created: Date.now() });
         res.cookie('auth', sessionId, {
             httpOnly: true,
-            secure: true,
+            secure: COOKIE_SECURE,
             sameSite: 'strict',
             signed: true,
             maxAge: SESSION_TTL_MS
@@ -174,7 +179,7 @@ app.post('/edit-rule', isAuthenticated, (req, res) => {
     if (!validateNormalizedRule(normalized)) {
         return res.status(400).json({ message: '规则验证失败，请检查输入' });
     }
-    normalized.endPort = normalized.endPort || normalized.startPort;
+    normalized.endPort = resolveEndPort(normalized);
 
     rules[index] = normalized;
     res.json({ message: '规则编辑成功' });
@@ -192,7 +197,7 @@ app.post('/save-rules', isAuthenticated, (req, res) => {
         if (!validateNormalizedRule(normalized)) {
             return res.status(400).json({ message: '规则验证失败，请检查输入' });
         }
-        const endPort = normalized.endPort || normalized.startPort;
+        const endPort = resolveEndPort(normalized);
         normalizedRules.push({ ...normalized, endPort });
     }
 
